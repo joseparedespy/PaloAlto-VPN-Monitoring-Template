@@ -16,7 +16,7 @@ zabbix_export:
           key: vpn.status
           value_type: TEXT
           trends: '0'
-          description: 'Recibe un listado de VPNs y sus estados'
+          description: 'Receive a list of VPNs and their statuses'
           preprocessing:
             - type: XML_TO_JSON
               parameters:
@@ -32,30 +32,30 @@ zabbix_export:
             - type: JAVASCRIPT
               parameters:
                 - |
-                  // Convertir la salida JSON a un array para su procesamiento por descubrimiento e ítems
+                  // Convert JSON output to an array for processing by discovery and items
                   const data = JSON.parse(value);
                   
-                  // Verificar si los datos existen y si IPSec tiene la propiedad 'entry'
+                  // Check if the data exists and if IPSec has the 'entry' property
                   if (!data || !data.response || !data.response.result || !data.response.result.IPSec || !Array.isArray(data.response.result.IPSec.entry)) {
-                    // Si no hay datos válidos, retornar un array vacío
+                    // If there is no valid data, return an empty array
                     return JSON.stringify([]);
                   }
                   
-                  // Mapear los estados a valores numéricos
+                  // Map states to numeric values
                   const result = data.response.result.IPSec.entry.map(function(tunnel) {
                     if (tunnel.state === 'active') {
-                      tunnel.state = 1;  // Active se convierte en 1
+                      tunnel.state = 1;  // Active becomes 1
                     } else if (tunnel.state === 'inactive') {
-                      tunnel.state = 0;  // Inactive se convierte en 0
+                      tunnel.state = 0;  // Inactive becomes 0
                     } else if (tunnel.state === 'init') {
-                      tunnel.state = 2;  // Init se convierte en 2
+                      tunnel.state = 2;  // Init becomes 2
                     } else {
-                      tunnel.state = -1;  // En caso de estado desconocido, asignar -1
+                      tunnel.state = -1;  // In case of unknown status, assign -1
                     }
                     return tunnel;
                   });
                   
-                  // Retornar el resultado como un array JSON
+                  // Return the result as a JSON array
                   return JSON.stringify(result);
                   
           url: 'https://{HOST.CONN}/api/'
@@ -73,7 +73,7 @@ zabbix_export:
           key: vpn.ipsec.discovery
           delay: '0'
           enabled_lifetime_type: DISABLE_NEVER
-          description: 'Extrae una lista de VPN configurados y sus estados'
+          description: 'Extracts a list of configured VPNs and their statuses'
           item_prototypes:
             - uuid: 9ae3ee04e49d495f99e76751aa35fdd9
               name: 'Tunnel {#TUNNEL.NAME}'
@@ -94,7 +94,7 @@ zabbix_export:
               trigger_prototypes:
                 - uuid: d0719af1431540a7ba41102b54429fcc
                   expression: 'last(/Palo Alto VPN IPSec Tunnels Status/vpn.ipsec.state.[{#TUNNEL.NAME}])="[0]"'
-                  name: 'Tunnel {#TUNNEL.NAME} esta enfermito :('
+                  name: 'Tunnel {#TUNNEL.NAME} is Down :('
                   priority: HIGH
           master_item:
             key: vpn.status
@@ -108,8 +108,8 @@ zabbix_export:
           name: vpn_state_mapping
           mappings:
             - value: '[0]'
-              newvalue: Downcito
+              newvalue: Down
             - value: '[1]'
-              newvalue: Upcito
+              newvalue: Up
             - value: '[2]'
-              newvalue: Initcito
+              newvalue: Init
