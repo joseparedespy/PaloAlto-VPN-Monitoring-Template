@@ -1,0 +1,115 @@
+zabbix_export:
+  version: '6.4'
+  template_groups:
+    - uuid: 36bff6c29af64692839d077febfc7079
+      name: 'Templates/Network devices'
+  templates:
+    - uuid: c95efefed81e45a9bc5cccc38f9cd4ff
+      template: 'Palo Alto VPN IPSec Tunnels Status'
+      name: 'Palo Alto VPN IPSec Tunnels Status'
+      groups:
+        - name: 'Templates/Network devices'
+      items:
+        - uuid: ec115f998b5d4780b3020cef208d3304
+          name: 'Get VPN IPSec Status'
+          type: HTTP_AGENT
+          key: vpn.status
+          value_type: TEXT
+          trends: '0'
+          description: 'Recibe un listado de VPNs y sus estados'
+          preprocessing:
+            - type: XML_TO_JSON
+              parameters:
+                - ''
+            - type: STR_REPLACE
+              parameters:
+                - '-'
+                - _
+            - type: STR_REPLACE
+              parameters:
+                - '@'
+                - ''
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  // Convertir la salida JSON a un array para su procesamiento por descubrimiento e ítems
+                  const data = JSON.parse(value);
+                  
+                  // Verificar si los datos existen y si IPSec tiene la propiedad 'entry'
+                  if (!data || !data.response || !data.response.result || !data.response.result.IPSec || !Array.isArray(data.response.result.IPSec.entry)) {
+                    // Si no hay datos válidos, retornar un array vacío
+                    return JSON.stringify([]);
+                  }
+                  
+                  // Mapear los estados a valores numéricos
+                  const result = data.response.result.IPSec.entry.map(function(tunnel) {
+                    if (tunnel.state === 'active') {
+                      tunnel.state = 1;  // Active se convierte en 1
+                    } else if (tunnel.state === 'inactive') {
+                      tunnel.state = 0;  // Inactive se convierte en 0
+                    } else if (tunnel.state === 'init') {
+                      tunnel.state = 2;  // Init se convierte en 2
+                    } else {
+                      tunnel.state = -1;  // En caso de estado desconocido, asignar -1
+                    }
+                    return tunnel;
+                  });
+                  
+                  // Retornar el resultado como un array JSON
+                  return JSON.stringify(result);
+                  
+          url: 'https://{HOST.CONN}/api/'
+          query_fields:
+            - name: type
+              value: op
+            - name: cmd
+              value: '<show><vpn><flow></flow></vpn></show>'
+            - name: key
+              value: '{$PAN_API_KEY}'
+      discovery_rules:
+        - uuid: 222e4018d34e4c9385fb6c2ae1e935fc
+          name: 'VPN Tunnel Discovery'
+          type: DEPENDENT
+          key: vpn.ipsec.discovery
+          delay: '0'
+          enabled_lifetime_type: DISABLE_NEVER
+          description: 'Extrae una lista de VPN configurados y sus estados'
+          item_prototypes:
+            - uuid: 9ae3ee04e49d495f99e76751aa35fdd9
+              name: 'Tunnel {#TUNNEL.NAME}'
+              type: DEPENDENT
+              key: 'vpn.ipsec.state.[{#TUNNEL.NAME}]'
+              delay: '0'
+              value_type: TEXT
+              trends: '0'
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$[?(@.name == ''{#TUNNEL.NAME}'')].state'
+              master_item:
+                key: vpn.status
+              tags:
+                - tag: Env
+                  value: Production
+              trigger_prototypes:
+                - uuid: d0719af1431540a7ba41102b54429fcc
+                  expression: 'last(/Palo Alto VPN IPSec Tunnels Status/vpn.ipsec.state.[{#TUNNEL.NAME}])="[0]"'
+                  name: 'Tunnel {#TUNNEL.NAME} esta enfermito :('
+                  priority: HIGH
+          master_item:
+            key: vpn.status
+          lld_macro_paths:
+            - lld_macro: '{#TUNNEL.NAME}'
+              path: $.name
+            - lld_macro: '{#TUNNEL.STATE}'
+              path: $.state
+      valuemaps:
+        - uuid: cb2e96b53bd943c6af636be88b9a07ff
+          name: vpn_state_mapping
+          mappings:
+            - value: '[0]'
+              newvalue: Downcito
+            - value: '[1]'
+              newvalue: Upcito
+            - value: '[2]'
+              newvalue: Initcito
