@@ -110,9 +110,9 @@ To customize:
 
 ## Example Dashboard
 
-Below is an example of a Grafana dashboard displaying tunnel states:
+Below is an example of a Zabbix items displaying tunnel states:
 
-![Example of Grafana Dashboard](images/example_dashboard.png)
+![Example of Zabbix](images/example_dashboard.png)
 
 ---
 
