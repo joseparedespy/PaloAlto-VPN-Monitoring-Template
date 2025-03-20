@@ -72,7 +72,6 @@ zabbix_export:
           type: DEPENDENT
           key: vpn.ipsec.discovery
           delay: '0'
-          enabled_lifetime_type: DISABLE_NEVER
           description: 'Extracts a list of configured VPNs and their statuses'
           item_prototypes:
             - uuid: 9ae3ee04e49d495f99e76751aa35fdd9
@@ -94,7 +93,7 @@ zabbix_export:
               trigger_prototypes:
                 - uuid: d0719af1431540a7ba41102b54429fcc
                   expression: 'last(/Palo Alto VPN IPSec Tunnels Status/vpn.ipsec.state.[{#TUNNEL.NAME}])="[0]"'
-                  name: 'Tunnel {#TUNNEL.NAME} is Down :('
+                  name: 'Tunnel {#TUNNEL.NAME} is Down'
                   priority: HIGH
           master_item:
             key: vpn.status
